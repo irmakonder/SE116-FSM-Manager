@@ -62,7 +62,7 @@ public class FSM implements Serializable {
         try {
             switch (input[0]) {
                 case "EXIT":
-                    System.out.println("TERMINATED BY USER");
+                    System.err.print("TERMINATED BY USER");
                     System.exit(0);
                     break;
                 case "SYMBOLS":
@@ -337,7 +337,7 @@ public class FSM implements Serializable {
     }
 
     private void Execute(String[] perimeters) {
-        // Execute I don't know how it works at all...
+        // Execute, I don't know how it works at all...
         System.out.println("Executing...");
     }
 
