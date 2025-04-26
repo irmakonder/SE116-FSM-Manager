@@ -408,9 +408,3 @@ class HasNotBeenDeclaredBefore extends Exception {
         super("Warning: Input has not been declared before " + what);
     }
 }
-
-class IllegalArgumentNumberException extends Exception {
-    public IllegalArgumentNumberException() {
-        super("Warning: Illegal amount of Arguments. Expected amount is 1");
-    }
-}
