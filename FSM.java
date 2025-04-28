@@ -374,7 +374,33 @@ public class FSM implements Serializable {
         System.out.println("Data cleared.");
     }
 
-    private void processFileCommand(String command) {}
+    private void processFileCommand(String command) {
+        System.out.println("Processing...");
+        if (command == null) {
+            return;
+        }
+        command = command.trim();
+        if (command.isEmpty()) {
+            return;
+        }
+        if (command.startsWith("//")) {
+            return;
+        }
+        String[] commandParts = command.split(";");
+        for (String singleCommand : commandParts) {
+            singleCommand = singleCommand.trim();
+            if (singleCommand.isEmpty()) {
+                continue;
+            }
+
+            try {
+                processCommand(singleCommand);
+            } catch (Exception e) {
+                System.out.println("Warning: An unexpected error occurred while processing command -> \"" + singleCommand + "\"");
+                System.out.println("System Message: " + e.toString());
+            }
+        }
+    }
 
 
 
