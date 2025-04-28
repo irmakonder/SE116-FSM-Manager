@@ -229,7 +229,50 @@ public class FSM implements Serializable {
     }
 
     private void Transitions(String prompt) {
-        // Create transitions for execution, split with ",".
+      String[] parts = prompt.substring("TRANSITIONS".length()).trim().split(",");
+      for(int i = 0; i < parts.length;i++){
+          String[] elements = parts[i].trim().split("\\s+");
+          if(elements.length !=  3){
+              System.out.println("Warning: Invalid transition format -> " + parts[i].trim());
+              continue;
+          }
+          String symbol = elements[0].toUpperCase();
+          String symbol2 = elements[1].toUpperCase();
+          String symbol3 = elements[2].toUpperCase();
+          boolean validSymbol = false;
+          for (int j=0; j < symbols.size();j++){
+             if (symbols.get(i).equals(symbol)){
+                 validSymbol = true;
+                 break;
+             }
+          }
+          if (!validSymbol){
+              System.out.println("Warning: Invalid symbol " + symbol);
+              continue;
+          }
+          boolean validCurrent = false;
+          boolean validNext = false;
+          for (int j = 0; j < states.size();j++){
+              if (states.get(j).equals(symbol2)) {validCurrent = true;}
+              if (states.get(j).equals(symbol3)){validNext = true;}
+          }
+          if (!validNext){
+              System.out.println("Warning: Invalid state " + symbol3);
+              continue;
+          }
+          if (!validCurrent){
+              System.out.println("Warning: Invalid state " + symbol2);
+              continue;
+          }
+          for (int j = 0; j < transitions.size();j++){
+              String[] a = transitions.get(j).split(" ");
+              if (a.length == 3 && a[0].equals(symbol) && a[1].equals(symbol2)){
+                  transitions.remove(j);
+                  break;
+              }
+          }
+          transitions.add(symbol + " " + symbol2 + symbol3);
+      }
 
     }
 
@@ -331,10 +374,9 @@ public class FSM implements Serializable {
         System.out.println("Data cleared.");
     }
 
-    private void processFileCommand(String command) {
-        // Processes the command input done via .txt file. (needs to be quite versatile since it will be used to process args[] input file commands as well.)
-        System.out.println("Processing...");
-    }
+    private void processFileCommand(String command) {}
+
+
 
     private void Execute(String[] perimeters) {
         // Execute, I don't know how it works at all...
