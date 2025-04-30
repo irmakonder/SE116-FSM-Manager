@@ -2,7 +2,6 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.time.LocalDate;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 
 class Main {
@@ -24,7 +23,6 @@ public class FSM implements Serializable {
         LocalDate currentDate = LocalDate.now();
         Scanner scan = new Scanner(System.in);
         System.out.println("FSM DESIGNER<1.0> " + currentDate);
-        String commandLine = "", input;
         if(args.length!=0) {
             // If there is args[] input
             try(Scanner reader = new Scanner(Paths.get(args[0]))) {
@@ -37,7 +35,11 @@ public class FSM implements Serializable {
                 System.out.println("Security Issue: " + e.getMessage());
             }
         }
-
+        takeInput();
+    }
+    private void takeInput(){
+        String commandLine = "", input;
+        Scanner scan = new Scanner(System.in);
         while(true) {
             System.out.print("? ");
             input = scan.nextLine();
@@ -45,7 +47,7 @@ public class FSM implements Serializable {
             if (input.contains(";")) {
                 int semicolonIndex = input.indexOf(';');
                 commandLine += " " + input.substring(0, semicolonIndex).trim();
-                if (logging) Log(null, input);
+                if (logging) log(null, input);
                 processCommand(commandLine.trim());
                 commandLine = "";
             } else {
@@ -55,9 +57,9 @@ public class FSM implements Serializable {
     }
     private void processCommand(String prompt) {
         String[] input = prompt.split(" ");
-        String[] perimeters = new String[input.length-1];
+        String[] parameters = new String[input.length-1];
         for (int i = 0; i < (input.length-1); i++) {
-            perimeters[i] = input[i+1];
+            parameters[i] = input[i+1];
         }
         try {
             switch (input[0]) {
@@ -66,37 +68,37 @@ public class FSM implements Serializable {
                     System.exit(0);
                     break;
                 case "SYMBOLS":
-                    Symbols(perimeters);
+                    symbols(parameters);
                     break;
                 case "STATES":
-                    States(perimeters);
+                    states(parameters);
                     break;
                 case "INITIAL-STATE":
-                    InitialState(perimeters);
+                    initialState(parameters);
                     break;
                 case "FINAL-STATE":
-                    FinalState(perimeters);
+                    finalState(parameters);
                     break;
                 case "LOG":
-                    Log(perimeters, "LOG " + input[0]);
+                    log(parameters, "LOG " + input[0]);
                     break;
                 case "TRANSITIONS":
-                    Transitions(prompt);
+                    transitions(prompt);
                     break;
                 case "PRINT":
-                    Print(perimeters);
+                    print(parameters);
                     break;
                 case "COMPILE":
-                    Compile(perimeters);
+                    compile(parameters);
                     break;
                 case "LOAD":
-                    Load(perimeters);
+                    load(parameters);
                     break;
                 case "CLEAR":
-                    Clear();
+                    clear();
                     break;
                 case "EXECUTE":
-                    Execute(perimeters);
+                    execute(parameters);
                     break;
                 default:
                     throw new UnknownCommandException(input[0]);
@@ -106,29 +108,29 @@ public class FSM implements Serializable {
         }
     }
 
-    private void Symbols(String[] perimeters) {
-        if(perimeters.length==0) {
+    private void symbols(String[] parameters) {
+        if(parameters.length==0) {
             System.out.print("{ ");
             for(String symbol : symbols) {
                 System.out.print(symbol + " ");
             }
             System.out.println("}");
         } else {
-            for(String perimeter : perimeters) {
+            for(String parameter : parameters) {
                 try {
-                    for (char c : perimeter.toCharArray()) {
+                    for (char c : parameter.toCharArray()) {
                         if (!Character.isLetterOrDigit(c)) {
-                            throw new NotAlphanumericException(perimeter);
+                            throw new NotAlphanumericException(parameter);
                         }
                     }
-                    if (perimeter.length() == 1) {
+                    if (parameter.length() == 1) {
                         for (String existingSymbols : symbols) {
-                            if (perimeter.equalsIgnoreCase(existingSymbols)) {
-                                throw new AlreadyDeclaredException(perimeter.toUpperCase());
+                            if (parameter.equalsIgnoreCase(existingSymbols)) {
+                                throw new AlreadyDeclaredException(parameter.toUpperCase());
                             }
                         }
-                        symbols.add(perimeter.toUpperCase());
-                    } else throw new InvalidInputException(perimeter);
+                        symbols.add(parameter.toUpperCase());
+                    } else throw new InvalidInputException(parameter);
                 } catch (InvalidInputException | NotAlphanumericException | AlreadyDeclaredException e) {
                     System.out.println(e.getMessage());
                 }
@@ -136,15 +138,15 @@ public class FSM implements Serializable {
         }
     }
 
-    private void States(String[] perimeters) {
-        if(perimeters.length==0) {
+    private void states(String[] parameters) {
+        if(parameters.length==0) {
             System.out.print("[ ");
             for(String state : states) {
                 System.out.print(state + " ");
             }
             System.out.println("]");
         } else {
-            for(String perimeter : perimeters) {
+            for(String perimeter : parameters) {
                 try {
                     for (char c : perimeter.toCharArray()) {
                         if (!Character.isLetterOrDigit(c)) {
@@ -166,28 +168,28 @@ public class FSM implements Serializable {
         }
     }
 
-    private void InitialState(String[] perimeters) throws InvalidInputException {
-        if(perimeters.length == 0) throw new InvalidInputException("due to missing state!");
-        for (String perimeter : perimeters) {
+    private void initialState(String[] parameters) throws InvalidInputException {
+        if(parameters.length == 0) throw new InvalidInputException("due to missing state!");
+        for (String parameter : parameters) {
             try {
-                for (char c : perimeter.toCharArray()) {
-                    if (!Character.isLetterOrDigit(c)) throw new NotAlphanumericException(perimeter);
+                for (char c : parameter.toCharArray()) {
+                    if (!Character.isLetterOrDigit(c)) throw new NotAlphanumericException(parameter);
                 }
-                if (!(perimeter.length() == 2)) throw new InvalidInputException(perimeter);
+                if (!(parameter.length() == 2)) throw new InvalidInputException(parameter);
                 for(String initials : initialState) {
-                    if(perimeter.equalsIgnoreCase(initials)) throw new AlreadyDeclaredException(perimeter);
+                    if(parameter.equalsIgnoreCase(initials)) throw new AlreadyDeclaredException(parameter);
                 }
                 boolean found = false;
                 for (String existingStates : states) {
-                    if (perimeter.equalsIgnoreCase(existingStates)) {
+                    if (parameter.equalsIgnoreCase(existingStates)) {
                         found = true;
                         break;
                     }
                 }
-                initialState.add(perimeter.toUpperCase());
+                initialState.add(parameter.toUpperCase());
                 if (!found) {
-                    states.add(perimeter);
-                    throw new HasNotBeenDeclaredBefore(perimeter);
+                    states.add(parameter);
+                    throw new HasNotBeenDeclaredBefore(parameter);
                 }
             } catch (InvalidInputException | NotAlphanumericException | HasNotBeenDeclaredBefore | AlreadyDeclaredException e) {
                 System.out.println(e.getMessage());
@@ -195,9 +197,9 @@ public class FSM implements Serializable {
         }
     }
 
-    private void FinalState(String[] perimeters) throws InvalidInputException {
-        if(perimeters.length == 0) throw new InvalidInputException("due to missing state!");
-        for (String perimeter : perimeters) {
+    private void finalState(String[] parameters) throws InvalidInputException {
+        if(parameters.length == 0) throw new InvalidInputException("due to missing state!");
+        for (String perimeter : parameters) {
             try {
                 for (char c : perimeter.toCharArray()) {
                     if (!Character.isLetterOrDigit(c)) throw new NotAlphanumericException(perimeter);
@@ -224,54 +226,33 @@ public class FSM implements Serializable {
         }
     }
 
-    private void Log(String[] perimeters, String log) {
+    private void log(String[] perimeters, String log) {
         // Start or stop saving log.
     }
 
-    private void Transitions(String prompt) {
+    private void transitions(String prompt) throws InvalidInputException {
       String[] parts = prompt.substring("TRANSITIONS".length()).trim().split(",");
       for(int i = 0; i < parts.length;i++){
-          String[] elements = parts[i].trim().split("\\s+");
-          if(elements.length !=  3){
-              System.out.println("Warning: Invalid transition format -> " + parts[i].trim());
-              continue;
-          }
+          String[] elements = parts[i].trim().split(" ");
+          if(elements.length !=  3)throw new InvalidInputException (prompt);
           String symbol = elements[0].toUpperCase();
-          String symbol2 = elements[1].toUpperCase();
-          String symbol3 = elements[2].toUpperCase();
-          boolean validSymbol = false;
+          String currentState = elements[1].toUpperCase();
+          String result = elements[2].toUpperCase();
           for (int j=0; j < symbols.size();j++){
-             if (symbols.get(i).equals(symbol)){
-                 validSymbol = true;
-                 break;
-             }
+              if (symbols.get(j).equals(symbol))throw new InvalidInputException (symbol + " " + currentState + " " + result);
           }
-          if (!validSymbol){
-              System.out.println("Warning: Invalid symbol " + symbol);
-              continue;
-          }
-          boolean validCurrent = false;
-          boolean validNext = false;
           for (int j = 0; j < states.size();j++){
-              if (states.get(j).equals(symbol2)) {validCurrent = true;}
-              if (states.get(j).equals(symbol3)){validNext = true;}
-          }
-          if (!validNext){
-              System.out.println("Warning: Invalid state " + symbol3);
-              continue;
-          }
-          if (!validCurrent){
-              System.out.println("Warning: Invalid state " + symbol2);
-              continue;
+              if (states.get(j).equals(currentState))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
+              if (states.get(j).equals(result))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
           }
           for (int j = 0; j < transitions.size();j++){
               String[] a = transitions.get(j).split(" ");
-              if (a.length == 3 && a[0].equals(symbol) && a[1].equals(symbol2)){
+              if (a.length == 3 && a[0].equals(symbol) && a[1].equals(currentState)){
                   transitions.remove(j);
                   break;
               }
           }
-          transitions.add(symbol + " " + symbol2 + symbol3);
+          transitions.add(symbol + " " + currentState + " " + result);
       }
 
     }
@@ -280,8 +261,8 @@ public class FSM implements Serializable {
         return transition.split(" ");
     }
 
-    private void Print(String[] perimeters) {
-        if(perimeters.length == 0) {
+    private void print(String[] parameters) {
+        if(parameters.length == 0) {
             System.out.print("SYMBOLS: { ");
             for(String symbol : symbols) System.out.print(symbol + " ");
             System.out.println("}");
@@ -301,10 +282,10 @@ public class FSM implements Serializable {
         }
     }
 
-    private void Compile(String[] perimeters) throws InvalidInputException {
-        if(perimeters.length==0) throw new InvalidInputException(", too few arguments.");
-        if(perimeters.length>1) throw new InvalidInputException(", too many arguments.");
-        String fileName = perimeters[0];
+    private void compile(String[] parameters) throws InvalidInputException {
+        if(parameters.length==0) throw new InvalidInputException(", too few arguments.");
+        if(parameters.length>1) throw new InvalidInputException(", too many arguments.");
+        String fileName = parameters[0];
         if(!fileName.endsWith(".ser")) throw new InvalidInputException(", file name must end with '.ser'");
 
         try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName))) {
@@ -319,10 +300,10 @@ public class FSM implements Serializable {
         }
     }
 
-    private void Load(String[] perimeters) throws InvalidInputException {
-        if(perimeters.length==0) throw new InvalidInputException(", too few arguments.");
-        if(perimeters.length>1) throw new InvalidInputException(", too many arguments.");
-        String fileName = perimeters[0];
+    private void load(String[] parameters) throws InvalidInputException {
+        if(parameters.length==0) throw new InvalidInputException(", too few arguments.");
+        if(parameters.length>1) throw new InvalidInputException(", too many arguments.");
+        String fileName = parameters[0];
         if(fileName.endsWith(".ser")) {
             FSM readFSM = null;
 
@@ -365,7 +346,7 @@ public class FSM implements Serializable {
         } else throw new InvalidInputException(", file extension must be either .ser or .txt ");
     }
 
-    private void Clear() {
+    private void clear() {
         symbols = new ArrayList<>();
         states = new ArrayList<>();
         initialState = new ArrayList<>();
@@ -375,36 +356,17 @@ public class FSM implements Serializable {
     }
 
     private void processFileCommand(String command) {
-        System.out.println("Processing...");
-        if (command == null) {
-            return;
-        }
-        command = command.trim();
-        if (command.isEmpty()) {
-            return;
-        }
-        if (command.startsWith("//")) {
-            return;
-        }
+        if (command == null || command.trim().isEmpty()) return;
+        //Log için ayrı bölüm yaz
         String[] commandParts = command.split(";");
-        for (String singleCommand : commandParts) {
-            singleCommand = singleCommand.trim();
-            if (singleCommand.isEmpty()) {
-                continue;
-            }
+        processCommand(commandParts[0]);
+        if(1 < commandParts.length ) log(null,command);
 
-            try {
-                processCommand(singleCommand);
-            } catch (Exception e) {
-                System.out.println("Warning: An unexpected error occurred while processing command -> \"" + singleCommand + "\"");
-                System.out.println("System Message: " + e.toString());
-            }
-        }
     }
 
 
 
-    private void Execute(String[] perimeters) {
+    private void execute(String[] perimeters) {
         // Execute, I don't know how it works at all...
         System.out.println("Executing...");
     }
