@@ -231,29 +231,29 @@ public class FSM implements Serializable {
     }
 
     private void transitions(String prompt) throws InvalidInputException {
-      String[] parts = prompt.substring("TRANSITIONS".length()).trim().split(",");
-      for(int i = 0; i < parts.length;i++){
-          String[] elements = parts[i].trim().split(" ");
-          if(elements.length !=  3)throw new InvalidInputException (prompt);
-          String symbol = elements[0].toUpperCase();
-          String currentState = elements[1].toUpperCase();
-          String result = elements[2].toUpperCase();
-          for (int j=0; j < symbols.size();j++){
-              if (symbols.get(j).equals(symbol))throw new InvalidInputException (symbol + " " + currentState + " " + result);
-          }
-          for (int j = 0; j < states.size();j++){
-              if (states.get(j).equals(currentState))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
-              if (states.get(j).equals(result))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
-          }
-          for (int j = 0; j < transitions.size();j++){
-              String[] a = transitions.get(j).split(" ");
-              if (a.length == 3 && a[0].equals(symbol) && a[1].equals(currentState)){
-                  transitions.remove(j);
-                  break;
-              }
-          }
-          transitions.add(symbol + " " + currentState + " " + result);
-      }
+        String[] parts = prompt.substring("TRANSITIONS".length()).trim().split(",");
+        for(int i = 0; i < parts.length;i++){
+            String[] elements = parts[i].trim().split(" ");
+            if(elements.length !=  3)throw new InvalidInputException (prompt);
+            String symbol = elements[0].toUpperCase();
+            String currentState = elements[1].toUpperCase();
+            String result = elements[2].toUpperCase();
+            for (int j=0; j < symbols.size();j++){
+                if (symbols.get(j).equals(symbol))throw new InvalidInputException (symbol + " " + currentState + " " + result);
+            }
+            for (int j = 0; j < states.size();j++){
+                if (states.get(j).equals(currentState))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
+                if (states.get(j).equals(result))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
+            }
+            for (int j = 0; j < transitions.size();j++){
+                String[] a = transitions.get(j).split(" ");
+                if (a.length == 3 && a[0].equals(symbol) && a[1].equals(currentState)){
+                    transitions.remove(j);
+                    break;
+                }
+            }
+            transitions.add(symbol + " " + currentState + " " + result);
+        }
 
     }
 
@@ -406,6 +406,51 @@ public class FSM implements Serializable {
     }
     public void setLogging(boolean logging) {
         this.logging = logging;
+    }
+
+    
+    public void execute(String input) {
+        if (initialState.isEmpty()) {
+            System.out.println("No initial state defined.");
+            return;
+        }
+
+        String currentState = initialState.get(0);
+        boolean rejected = false;
+
+        for (int i = 0; i < input.length(); i++) {
+            String symbol = String.valueOf(input.charAt(i));
+            boolean foundTransition = false;
+
+            for (String transition : transitions) {
+                String[] parts = transition.split(",");
+                if (parts.length != 3) continue;
+
+                String from = parts[0];
+                String via = parts[1];
+                String to = parts[2];
+
+                if (from.equals(currentState) && via.equals(symbol)) {
+                    currentState = to;
+                    foundTransition = true;
+                    break;
+                }
+            }
+
+            if (!foundTransition) {
+                System.out.println("Rejected: No transition found for symbol '" + symbol + "' from state '" + currentState + "'");
+                rejected = true;
+                break;
+            }
+        }
+
+        if (!rejected) {
+            if (finalState.contains(currentState)) {
+                System.out.println("Accepted.");
+            } else {
+                System.out.println("Rejected: Ended at non-final state '" + currentState + "'");
+            }
+        }
     }
 }
 
