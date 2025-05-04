@@ -3,11 +3,84 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.time.LocalDate;
 import java.nio.file.Paths;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.InputStreamReader;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 class Main {
     public static void main(String[] args) {
+
+        String version = "1.0";
+        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        System.out.println("FSM DESIGNER " + version + " " + currentDate);
+
         FSM fsm = new FSM();
-        fsm.start(args);
+
+        try {
+            if (args.length > 0) {
+
+                BufferedReader fileReader = new BufferedReader(new FileReader(args[0]));
+                String line;
+                StringBuilder commandBuffer = new StringBuilder();
+
+                while ((line = fileReader.readLine()) != null) {
+                    line = line.trim();
+                    if (line.startsWith(";")) continue;
+                    commandBuffer.append(" ").append(line);
+                    if (line.contains(";")) {
+                        fsm.processCommand(commandBuffer.toString());
+                        commandBuffer.setLength(0);
+                    }
+                }
+                fileReader.close();
+            }
+
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            String input;
+            StringBuilder commandBuffer = new StringBuilder();
+
+            while (true) {
+                System.out.print("? ");
+                input = reader.readLine();
+                if (input == null) break;
+
+                input = input.trim();
+                if (input.startsWith(";")) continue; // Yorum satırı
+
+                commandBuffer.append(" ").append(input);
+
+                if (input.contains(";")) {
+                    fsm.processCommand(commandBuffer.toString());
+                    commandBuffer.setLength(0);
+                }
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+        }
+    }
+}
+
+class FSMLogger {
+    private String logFile;
+
+    public FSMLogger(String filename) {
+        this.logFile = filename;
+    }
+
+    public void log(String command) {
+        try (PrintWriter out = new PrintWriter(new FileWriter(logFile, true))) {
+            out.println(command);
+        } catch (IOException e) {
+            System.out.println("Logging failed: " + e.getMessage());
+        }
     }
 }
 
@@ -18,6 +91,7 @@ public class FSM implements Serializable {
     private ArrayList<String> finalState = new ArrayList<>();
     private ArrayList<String> transitions = new ArrayList<>();
     private boolean logging = false;
+    private FSMLogger logger = new FSMLogger("fsm_log.txt");
 
     public void start(String[] args) {
         LocalDate currentDate = LocalDate.now();
@@ -27,7 +101,11 @@ public class FSM implements Serializable {
             // If there is args[] input
             try(Scanner reader = new Scanner(Paths.get(args[0]))) {
                 while(reader.hasNextLine()) {
-                    processFileCommand(reader.nextLine());
+                    String line = reader.nextLine();
+                    if (logging) {
+                        logger.log(line);
+                    }
+                    processFileCommand(line);
                 }
             } catch (IOException e) {
                 System.out.println("Something went wrong with I/O through args[]: " + e.getMessage());
@@ -40,6 +118,9 @@ public class FSM implements Serializable {
     private void takeInput(){
         String commandLine = "", input;
         Scanner scan = new Scanner(System.in);
+        if (logging) {
+            logger.log(commandLine);
+        }
         while(true) {
             System.out.print("? ");
             input = scan.nextLine();
@@ -55,7 +136,12 @@ public class FSM implements Serializable {
             }
         }
     }
-    private void processCommand(String prompt) {
+    public void processCommand(String prompt) {
+
+        if (logging) {
+            logger.log(prompt);
+        }
+
         String[] input = prompt.split(" ");
         String[] parameters = new String[input.length-1];
         for (int i = 0; i < (input.length-1); i++) {
@@ -356,6 +442,11 @@ public class FSM implements Serializable {
     }
 
     private void processFileCommand(String command) {
+
+        if (logging) {
+            logger.log(command);
+        }
+
         if (command == null || command.trim().isEmpty()) return;
         //Log için ayrı bölüm yaz
         String[] commandParts = command.split(";");
@@ -408,7 +499,7 @@ public class FSM implements Serializable {
         this.logging = logging;
     }
 
-    
+
     public void execute(String input) {
         if (initialState.isEmpty()) {
             System.out.println("No initial state defined.");
