@@ -3,84 +3,11 @@ import java.util.ArrayList;
 import java.util.Scanner;
 import java.time.LocalDate;
 import java.nio.file.Paths;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.InputStreamReader;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 class Main {
     public static void main(String[] args) {
-
-        String version = "1.0";
-        String currentDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
-        System.out.println("FSM DESIGNER " + version + " " + currentDate);
-
         FSM fsm = new FSM();
-
-        try {
-            if (args.length > 0) {
-
-                BufferedReader fileReader = new BufferedReader(new FileReader(args[0]));
-                String line;
-                StringBuilder commandBuffer = new StringBuilder();
-
-                while ((line = fileReader.readLine()) != null) {
-                    line = line.trim();
-                    if (line.startsWith(";")) continue;
-                    commandBuffer.append(" ").append(line);
-                    if (line.contains(";")) {
-                        fsm.processCommand(commandBuffer.toString());
-                        commandBuffer.setLength(0);
-                    }
-                }
-                fileReader.close();
-            }
-
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-            String input;
-            StringBuilder commandBuffer = new StringBuilder();
-
-            while (true) {
-                System.out.print("? ");
-                input = reader.readLine();
-                if (input == null) break;
-
-                input = input.trim();
-                if (input.startsWith(";")) continue; // Yorum satırı
-
-                commandBuffer.append(" ").append(input);
-
-                if (input.contains(";")) {
-                    fsm.processCommand(commandBuffer.toString());
-                    commandBuffer.setLength(0);
-                }
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
-        }
-    }
-}
-
-class FSMLogger {
-    private String logFile;
-
-    public FSMLogger(String filename) {
-        this.logFile = filename;
-    }
-
-    public void log(String command) {
-        try (PrintWriter out = new PrintWriter(new FileWriter(logFile, true))) {
-            out.println(command);
-        } catch (IOException e) {
-            System.out.println("Logging failed: " + e.getMessage());
-        }
+        fsm.start(args);
     }
 }
 
@@ -91,36 +18,28 @@ public class FSM implements Serializable {
     private ArrayList<String> finalState = new ArrayList<>();
     private ArrayList<String> transitions = new ArrayList<>();
     private boolean logging = false;
-    private FSMLogger logger = new FSMLogger("fsm_log.txt");
+    private String fileName = "";
 
     public void start(String[] args) {
         LocalDate currentDate = LocalDate.now();
         Scanner scan = new Scanner(System.in);
         System.out.println("FSM DESIGNER<1.0> " + currentDate);
         if(args.length!=0) {
-            // If there is args[] input
             try(Scanner reader = new Scanner(Paths.get(args[0]))) {
                 while(reader.hasNextLine()) {
-                    String line = reader.nextLine();
-                    if (logging) {
-                        logger.log(line);
-                    }
-                    processFileCommand(line);
+                    processFileCommand(reader.nextLine());
                 }
-            } catch (IOException e) {
-                System.out.println("Something went wrong with I/O through args[]: " + e.getMessage());
             } catch (SecurityException e) {
                 System.out.println("Security Issue: " + e.getMessage());
+            } catch (IOException e) {
+                System.out.println("Something went wrong with I/O through args[]: " + e.getMessage());
             }
         }
         takeInput();
     }
-    private void takeInput(){
+    private void takeInput() {
         String commandLine = "", input;
         Scanner scan = new Scanner(System.in);
-        if (logging) {
-            logger.log(commandLine);
-        }
         while(true) {
             System.out.print("? ");
             input = scan.nextLine();
@@ -128,7 +47,7 @@ public class FSM implements Serializable {
             if (input.contains(";")) {
                 int semicolonIndex = input.indexOf(';');
                 commandLine += " " + input.substring(0, semicolonIndex).trim();
-                if (logging) log(null, input);
+                if (logging) log(input);
                 processCommand(commandLine.trim());
                 commandLine = "";
             } else {
@@ -136,17 +55,11 @@ public class FSM implements Serializable {
             }
         }
     }
-    public void processCommand(String prompt) {
-
-        if (logging) {
-            logger.log(prompt);
-        }
-
+    private void processCommand(String prompt) {
         String[] input = prompt.split(" ");
         String[] parameters = new String[input.length-1];
-        for (int i = 0; i < (input.length-1); i++) {
-            parameters[i] = input[i+1];
-        }
+        for (int i = 0; i < (input.length-1); i++) parameters[i] = input[i+1];
+
         try {
             switch (input[0]) {
                 case "EXIT":
@@ -166,7 +79,7 @@ public class FSM implements Serializable {
                     finalState(parameters);
                     break;
                 case "LOG":
-                    log(parameters, "LOG " + input[0]);
+                    log(prompt);
                     break;
                 case "TRANSITIONS":
                     transitions(prompt);
@@ -232,21 +145,17 @@ public class FSM implements Serializable {
             }
             System.out.println("]");
         } else {
-            for(String perimeter : parameters) {
+            for(String parameter : parameters) {
                 try {
-                    for (char c : perimeter.toCharArray()) {
-                        if (!Character.isLetterOrDigit(c)) {
-                            throw new NotAlphanumericException(perimeter);
-                        }
-                    }
-                    if (perimeter.length() == 2) {
+                    for (char c : parameter.toCharArray()) if (!Character.isLetterOrDigit(c)) throw new NotAlphanumericException(parameter);
+                    if (parameter.length() == 2) {
                         for (String existingStates : states) {
-                            if (perimeter.equalsIgnoreCase(existingStates)) {
-                                throw new AlreadyDeclaredException(perimeter.toUpperCase());
+                            if (parameter.equalsIgnoreCase(existingStates)) {
+                                throw new AlreadyDeclaredException(parameter.toUpperCase());
                             }
                         }
-                        states.add(perimeter.toUpperCase());
-                    } else throw new InvalidInputException(perimeter);
+                        states.add(parameter.toUpperCase());
+                    } else throw new InvalidInputException(parameter);
                 } catch (InvalidInputException | NotAlphanumericException | AlreadyDeclaredException e) {
                     System.out.println(e.getMessage());
                 }
@@ -312,39 +221,86 @@ public class FSM implements Serializable {
         }
     }
 
-    private void log(String[] perimeters, String log) {
-        // Start or stop saving log.
+    private void log(String prompt) {
+        // Process prompt variable and add LOGGING word at the beggining to actually understand that it needs to be logged...:(
+        if(true) {
+            try (PrintWriter writer = new PrintWriter(Paths.get(fileName).toFile())) {
+                // Write logging
+
+            } catch (SecurityException e) {
+                System.out.println("Security Issue: " + e.getMessage());
+            } catch (IOException e) {
+                System.err.println("Warning: Logging failed!");
+            }
+        } else if(prompt.isEmpty()) {
+            logging = !logging;
+        } else if(prompt.endsWith(".txt")) {
+            this.fileName = prompt;
+        }else {
+            try {
+                if(!fileName.endsWith(".txt")) throw new InvalidInputException(", file name must end with '.txt'");
+                throw new InvalidInputException("too many arguments for LOG command!");
+            } catch (InvalidInputException e) {
+                System.out.println(e.getMessage());
+            }
+        }
     }
 
-    private void transitions(String prompt) throws InvalidInputException {
-        String[] parts = prompt.substring("TRANSITIONS".length()).trim().split(",");
-        for(int i = 0; i < parts.length;i++){
-            String[] elements = parts[i].trim().split(" ");
-            if(elements.length !=  3)throw new InvalidInputException (prompt);
-            String symbol = elements[0].toUpperCase();
-            String currentState = elements[1].toUpperCase();
-            String result = elements[2].toUpperCase();
-            for (int j=0; j < symbols.size();j++){
-                if (symbols.get(j).equals(symbol))throw new InvalidInputException (symbol + " " + currentState + " " + result);
+    private void transitions(String directPrompt) throws InvalidInputException {
+        int gap = directPrompt.trim().indexOf(' ');
+        String prompt = "";
+        if (gap != -1) prompt = directPrompt.substring(gap + 1).trim();
+
+        if(prompt.isEmpty()) {
+            System.out.println("TRANSITIONS:");
+            for(String transition : transitions) {
+                System.out.print("{ " + transition);
+                System.out.println(" }");
             }
-            for (int j = 0; j < states.size();j++){
-                if (states.get(j).equals(currentState))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
-                if (states.get(j).equals(result))  throw new InvalidInputException (symbol + " " + currentState + " " + result);
-            }
-            for (int j = 0; j < transitions.size();j++){
-                String[] a = transitions.get(j).split(" ");
-                if (a.length == 3 && a[0].equals(symbol) && a[1].equals(currentState)){
-                    transitions.remove(j);
-                    break;
+        } else {
+            String[] mainParts = prompt.trim().split(",");
+            for (int i = 0; i < mainParts.length; i++) {
+                try {
+                    String[] elements = mainParts[i].trim().split("\\s+");
+                    if (elements.length != 3) throw new InvalidInputException(mainParts[i]);
+
+                    String symbol = elements[0].toUpperCase();
+                    String currentState = elements[1].toUpperCase();
+                    String nextState = elements[2].toUpperCase();
+
+                    String notDeclared = "";
+                    boolean s=false,cs=false,ns=false;
+                    if (!symbols.isEmpty()) {
+                        for (String string : symbols) if (symbol.equals(string)) s=true;
+                    }
+                    if(!s) notDeclared += symbol + " ";
+
+                    if (!states.isEmpty()) {
+                        for (String state : states) {
+                            if (state.equals(currentState)) cs=true;
+                            if (state.equals(nextState)) ns=true;
+                        }
+                    }
+                    if(!cs) notDeclared += currentState + " ";
+                    if(!ns) notDeclared += nextState + " ";
+
+                    if(!notDeclared.isEmpty()) throw new HasNotBeenDeclaredBefore(notDeclared + " (or must be at 'symbol currentState nextState' format divided by comma)");
+
+                    boolean set = false;
+                    for (int j = 0; j < transitions.size(); j++) {
+                        String[] existingTransitions = transitions.get(j).split(" ");
+                        if (existingTransitions.length == 3 && existingTransitions[0].equals(symbol) && existingTransitions[1].equals(currentState)) {
+                            transitions.set(j, symbol + " " + currentState + " " + nextState);
+                            set=true;
+                            break;
+                        }
+                    }
+                    if(!set) transitions.add(symbol + " " + currentState + " " + nextState);
+                } catch (HasNotBeenDeclaredBefore | InvalidInputException e) {
+                    System.out.println(e.getMessage());
                 }
             }
-            transitions.add(symbol + " " + currentState + " " + result);
         }
-
-    }
-
-    private String[] processTransition(String transition) {
-        return transition.split(" ");
     }
 
     private void print(String[] parameters) {
@@ -359,10 +315,11 @@ public class FSM implements Serializable {
             for(String initialStates : initialState) System.out.print(initialStates + " ");
             System.out.print("\nFINAL STATES: ");
             for(String finalStates : finalState) System.out.print(finalStates + " ");
-            System.out.print("\nTRANSITIONS: { ");
-            for(String transition : transitions) System.out.print(transition + " ");
-            System.out.println("}");
-            // Incomplete! (especially transitions part)
+            System.out.println("\nTRANSITIONS:");
+            for(String transition : transitions) {
+                System.out.print("{ " + transition);
+                System.out.println(" }");
+            }
         } else {
             // And there is this section as well with user command input... :(
         }
@@ -442,22 +399,16 @@ public class FSM implements Serializable {
     }
 
     private void processFileCommand(String command) {
-
-        if (logging) {
-            logger.log(command);
-        }
-
         if (command == null || command.trim().isEmpty()) return;
-        //Log için ayrı bölüm yaz
         String[] commandParts = command.split(";");
         processCommand(commandParts[0]);
-        if(1 < commandParts.length ) log(null,command);
+        if(1 < commandParts.length ) log(command);
 
     }
 
 
 
-    private void execute(String[] perimeters) {
+    private void execute(String[] parameters) {
         // Execute, I don't know how it works at all...
         System.out.println("Executing...");
     }
@@ -498,50 +449,11 @@ public class FSM implements Serializable {
     public void setLogging(boolean logging) {
         this.logging = logging;
     }
-
-
-    public void execute(String input) {
-        if (initialState.isEmpty()) {
-            System.out.println("No initial state defined.");
-            return;
-        }
-
-        String currentState = initialState.get(0);
-        boolean rejected = false;
-
-        for (int i = 0; i < input.length(); i++) {
-            String symbol = String.valueOf(input.charAt(i));
-            boolean foundTransition = false;
-
-            for (String transition : transitions) {
-                String[] parts = transition.split(",");
-                if (parts.length != 3) continue;
-
-                String from = parts[0];
-                String via = parts[1];
-                String to = parts[2];
-
-                if (from.equals(currentState) && via.equals(symbol)) {
-                    currentState = to;
-                    foundTransition = true;
-                    break;
-                }
-            }
-
-            if (!foundTransition) {
-                System.out.println("Rejected: No transition found for symbol '" + symbol + "' from state '" + currentState + "'");
-                rejected = true;
-                break;
-            }
-        }
-
-        if (!rejected) {
-            if (finalState.contains(currentState)) {
-                System.out.println("Accepted.");
-            } else {
-                System.out.println("Rejected: Ended at non-final state '" + currentState + "'");
-            }
-        }
+    public String getFileName() {
+        return fileName;
+    }
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 }
 
