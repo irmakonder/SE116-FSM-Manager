@@ -1,4 +1,5 @@
 import java.io.*;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.time.LocalDate;
@@ -30,9 +31,9 @@ public class FSM implements Serializable {
                     processFileCommand(reader.nextLine());
                 }
             } catch (SecurityException e) {
-                System.out.println("Security Issue: " + e.getMessage());
+                System.out.println("Security Issue!");
             } catch (IOException e) {
-                System.out.println("Something went wrong with I/O through args[]: " + e.getMessage());
+                System.out.println("Something went wrong with I/O through args[]");
             }
         }
         takeInput();
@@ -47,12 +48,10 @@ public class FSM implements Serializable {
             if (input.contains(";")) {
                 int semicolonIndex = input.indexOf(';');
                 commandLine += " " + input.substring(0, semicolonIndex).trim();
-                if (logging) log(input);
+                if (logging) log("PLZLOG/" + input);
                 processCommand(commandLine.trim());
                 commandLine = "";
-            } else {
-                commandLine += " " + input.trim();
-            }
+            } else commandLine += " " + input.trim();
         }
     }
     private void processCommand(String prompt) {
@@ -75,8 +74,8 @@ public class FSM implements Serializable {
                 case "INITIAL-STATE":
                     initialState(parameters);
                     break;
-                case "FINAL-STATE":
-                    finalState(parameters);
+                case "FINAL-STATES":
+                    finalStates(parameters);
                     break;
                 case "LOG":
                     log(prompt);
@@ -192,7 +191,7 @@ public class FSM implements Serializable {
         }
     }
 
-    private void finalState(String[] parameters) throws InvalidInputException {
+    private void finalStates(String[] parameters) throws InvalidInputException {
         if(parameters.length == 0) throw new InvalidInputException("due to missing state!");
         for (String perimeter : parameters) {
             try {
@@ -222,27 +221,39 @@ public class FSM implements Serializable {
     }
 
     private void log(String prompt) {
-        // Process prompt variable and add LOGGING word at the beggining to actually understand that it needs to be logged...:(
-        if(true) {
-            try (PrintWriter writer = new PrintWriter(Paths.get(fileName).toFile())) {
-                // Write logging
+        if(prompt.equals("LOG")) {
+            logging = !logging;
+            return;
+        }
+        if(prompt.startsWith("PLZLOG/")) {
+            int index = prompt.indexOf('/');
+            prompt = prompt.substring(index+1).trim();
 
+            try {
+                if(!Files.exists(Paths.get(fileName))) Files.createFile(Paths.get(fileName));
+
+                try (PrintWriter writer = new PrintWriter(new FileWriter(Paths.get(fileName).toFile(), true))) {
+                    writer.println(prompt);
+                    writer.flush();
+                }
             } catch (SecurityException e) {
                 System.out.println("Security Issue: " + e.getMessage());
             } catch (IOException e) {
-                System.err.println("Warning: Logging failed!");
+                if(fileName.isEmpty()) {
+                    System.out.println("Warning: A file name is required for logging!");
+                } else {
+                    System.out.println("Warning: Logging failed!");
+                }
             }
-        } else if(prompt.isEmpty()) {
-            logging = !logging;
-        } else if(prompt.endsWith(".txt")) {
-            this.fileName = prompt;
-        }else {
-            try {
-                if(!fileName.endsWith(".txt")) throw new InvalidInputException(", file name must end with '.txt'");
-                throw new InvalidInputException("too many arguments for LOG command!");
-            } catch (InvalidInputException e) {
-                System.out.println(e.getMessage());
+        } else {
+            String[] commands = prompt.trim().split(" ");
+            if(commands.length!=2) {
+                System.out.println("Warning: Invalid Input, too many arguments for LOG command. Expected is 1");
+                return;
             }
+            if(!commands[1].endsWith(".txt")) commands[1] += ".txt";
+            if(!logging) logging = true;
+            setFileName(commands[1]);
         }
     }
 
@@ -303,8 +314,9 @@ public class FSM implements Serializable {
         }
     }
 
-    private void print(String[] parameters) {
+    private void print(String[] parameters) throws InvalidInputException {
         if(parameters.length == 0) {
+            System.out.println("Logging: " + logging);
             System.out.print("SYMBOLS: { ");
             for(String symbol : symbols) System.out.print(symbol + " ");
             System.out.println("}");
@@ -320,20 +332,22 @@ public class FSM implements Serializable {
                 System.out.print("{ " + transition);
                 System.out.println(" }");
             }
-        } else {
-            // And there is this section as well with user command input... :(
-        }
+        } else if(parameters.length == 1) {
+            // Take user input as a file name and write all commands to reach the current state of FSM DESIGNER in to the given file name as a .txt file.
+        } else throw new InvalidInputException(", too many arguments! Expected 1 or 0");
     }
 
     private void compile(String[] parameters) throws InvalidInputException {
         if(parameters.length==0) throw new InvalidInputException(", too few arguments.");
         if(parameters.length>1) throw new InvalidInputException(", too many arguments.");
         String fileName = parameters[0];
-        if(!fileName.endsWith(".ser")) throw new InvalidInputException(", file name must end with '.ser'");
+        if(!fileName.endsWith(".ser")) fileName += ".ser";
 
         try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(fileName))) {
+            if(!Files.exists(Paths.get(fileName))) Files.createFile(Paths.get(fileName));
+
             out.writeObject(this);
-            System.out.println("Compile process complete!");
+            out.flush();
         } catch (InvalidClassException e) {
             System.out.println("Warning: Invalid Class! " + e.getMessage());
         } catch (NotSerializableException e) {
@@ -347,25 +361,38 @@ public class FSM implements Serializable {
         if(parameters.length==0) throw new InvalidInputException(", too few arguments.");
         if(parameters.length>1) throw new InvalidInputException(", too many arguments.");
         String fileName = parameters[0];
-        if(fileName.endsWith(".ser")) {
+        if (fileName.endsWith(".txt")) {
+
+            try (Scanner reader = new Scanner(Paths.get(fileName))) {
+                while (reader.hasNextLine()) {
+                    processFileCommand(reader.nextLine());
+                }
+            } catch (IOException e) {
+                System.out.println("Something went wrong with file I/O!");
+            } catch (SecurityException e) {
+                System.out.println("Security Exception!");
+            }
+
+        } else {
             FSM readFSM = null;
 
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(fileName))) {
                 readFSM = (FSM) in.readObject();
             } catch (FileNotFoundException e) {
-                System.out.println("File not found: " + e.getMessage());
+                System.out.println("Warning: File not found!");
             } catch (InvalidClassException e) {
-                System.out.println("Version not compatible: " + e.getMessage());
+                System.out.println("Warning: Version not compatible." );
             } catch (StreamCorruptedException e) {
-                System.out.println("File corrupted: " + e.getMessage());
+                System.out.println("Warning: File corrupted.");
             } catch (OptionalDataException e) {
-                System.out.println("Unexpected data found: " + e.getMessage());
+                System.out.println("Warning: Unexpected data found.");
             } catch (ClassNotFoundException e) {
-                System.out.println("Class not found: " + e.getMessage());
+                System.out.println("Warning: Class not found.");
             } catch (IOException e) {
-                System.out.println("Something went wrong! " + e.getMessage());
+                System.out.println("Warning: Something went wrong!");
             }
-            if(readFSM == null) throw new InvalidInputException(", failed to read the file.");
+
+            if (readFSM == null) throw new InvalidInputException(fileName);
             this.setSymbols(readFSM.getSymbols());
             this.setStates(readFSM.getStates());
             this.setInitialState(readFSM.getInitialState());
@@ -373,20 +400,7 @@ public class FSM implements Serializable {
             this.setTransitions(readFSM.getTransitions());
             this.setLogging(readFSM.getLogging());
             System.out.println("Object loading successful!");
-
-        } else if (fileName.endsWith(".txt")) {
-
-            try(Scanner reader = new Scanner(Paths.get(fileName))) {
-                while(reader.hasNextLine()) {
-                    processFileCommand(reader.nextLine());
-                }
-            } catch (IOException e) {
-                System.out.println("Something went wrong with I/O: " + e.getMessage());
-            } catch (SecurityException e) {
-                System.out.println("Security Exception: " + e.getMessage());
-            }
-
-        } else throw new InvalidInputException(", file extension must be either .ser or .txt ");
+        }
     }
 
     private void clear() {
@@ -395,21 +409,17 @@ public class FSM implements Serializable {
         initialState = new ArrayList<>();
         finalState = new ArrayList<>();
         transitions = new ArrayList<>();
-        System.out.println("Data cleared.");
     }
 
     private void processFileCommand(String command) {
         if (command == null || command.trim().isEmpty()) return;
         String[] commandParts = command.split(";");
         processCommand(commandParts[0]);
-        if(1 < commandParts.length ) log(command);
+        if(logging) log("PLZLOG/" + command);
 
     }
 
-
-
     private void execute(String[] parameters) {
-        // Execute, I don't know how it works at all...
         System.out.println("Executing...");
     }
 
