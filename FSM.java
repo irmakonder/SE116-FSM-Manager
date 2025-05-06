@@ -96,7 +96,7 @@ public class FSM implements Serializable {
                     clear();
                     break;
                 case "EXECUTE":
-                    execute(parameters);
+                    execute(parameters[0]);
                     break;
                 default:
                     throw new UnknownCommandException(input[0]);
@@ -332,8 +332,39 @@ public class FSM implements Serializable {
                 System.out.print("{ " + transition);
                 System.out.println(" }");
             }
-        } else if(parameters.length == 1) {
-            // Take user input as a file name and write all commands to reach the current state of FSM DESIGNER in to the given file name as a .txt file.
+        } else if (parameters.length == 1) {
+            String outFile = parameters[0];
+            if (!outFile.endsWith(".txt")) {
+                outFile += ".txt";
+            }
+            try (PrintWriter writer = new PrintWriter(new FileWriter(outFile))) {
+                writer.print("SYMBOLS");
+                for (String sym : symbols) writer.print(" " + sym);
+                writer.println(";");
+
+                writer.print("STATES");
+                for (String st : states) writer.print(" " + st);
+                writer.println(";");
+
+                if (!initialState.isEmpty()) {
+                    writer.println("INITIAL-STATE " + initialState.get(0) + ";");
+                } else {
+                    writer.println("INITIAL-STATE;");
+                }
+
+                writer.print("FINAL-STATES");
+                for (String fs : finalState) writer.print(" " + fs);
+                writer.println(";");
+
+                writer.print("TRANSITIONS");
+                for (int i = 0; i < transitions.size(); i++) {
+                    writer.print(" " + transitions.get(i));
+                    if (i < transitions.size() - 1) writer.print(",");
+                }
+                writer.println(";");
+            } catch (IOException e) {
+                System.out.println("Warning: Cannot create or write to file " + outFile);
+            }
         } else throw new InvalidInputException(", too many arguments! Expected 1 or 0");
     }
 
@@ -416,11 +447,50 @@ public class FSM implements Serializable {
         String[] commandParts = command.split(";");
         processCommand(commandParts[0]);
         if(logging) log("PLZLOG/" + command);
-
     }
 
-    private void execute(String[] parameters) {
-        System.out.println("Executing...");
+    public void execute(String input) {
+        if (initialState.isEmpty()) {
+            System.out.println("No initial state defined.");
+            return;
+        }
+
+        String currentState = initialState.get(0);
+        boolean rejected = false;
+
+        for (int i = 0; i < input.length(); i++) {
+            String symbol = String.valueOf(input.charAt(i));
+            boolean foundTransition = false;
+
+            for (String transition : transitions) {
+                String[] parts = transition.split(",");
+                if (parts.length != 3) continue;
+
+                String from = parts[0];
+                String via = parts[1];
+                String to = parts[2];
+
+                if (from.equals(currentState) && via.equals(symbol)) {
+                    currentState = to;
+                    foundTransition = true;
+                    break;
+                }
+            }
+
+            if (!foundTransition) {
+                System.out.println("Rejected: No transition found for symbol '" + symbol + "' from state '" + currentState + "'");
+                rejected = true;
+                break;
+            }
+        }
+
+        if (!rejected) {
+            if (finalState.contains(currentState)) {
+                System.out.println("Accepted.");
+            } else {
+                System.out.println("Rejected: Ended at non-final state '" + currentState + "'");
+            }
+        }
     }
 
     public ArrayList<String> getSymbols() {
