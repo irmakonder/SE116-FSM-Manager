@@ -158,6 +158,7 @@ class FSM implements Serializable {
                 try {
                     for (char c : parameter.toCharArray()) if (!Character.isLetterOrDigit(c)) throw new NotAlphanumericException(parameter);
                     if (parameter.length() == 2) {
+                        if(initialState.isEmpty()) initialState = parameter.toUpperCase();
                         for (String existingStates : states) {
                             if (parameter.equalsIgnoreCase(existingStates)) {
                                 throw new AlreadyDeclaredException(parameter.toUpperCase());
@@ -341,10 +342,11 @@ class FSM implements Serializable {
             }
         } else if (parameters.length == 1) {
             String outFile = parameters[0];
-            if (!outFile.endsWith(".txt")) {
-                outFile += ".txt";
-            }
+            if (!outFile.endsWith(".txt")) outFile += ".txt";
+
             try (PrintWriter writer = new PrintWriter(new FileWriter(outFile))) {
+                if(!Files.exists(Paths.get(outFile))) Files.createFile(Paths.get(outFile));
+
                 if(!symbols.isEmpty()){
                     writer.print("SYMBOLS");
                     for (String sym : symbols) writer.print(" " + sym);
@@ -357,7 +359,7 @@ class FSM implements Serializable {
                     writer.println(";");
                 }
 
-                if (!initialState.isEmpty()) writer.println("INITIAL-STATE " + initialState + ";");
+                if (!initialState.isEmpty()) if(!initialState.equals(states.getFirst())) writer.println("INITIAL-STATE " + initialState + ";");
 
                 if(!finalState.isEmpty()) {
                     writer.print("FINAL-STATES");
@@ -373,7 +375,7 @@ class FSM implements Serializable {
                     }
                     writer.println(";");
                 }
-
+                writer.flush();
             } catch (IOException e) {
                 System.out.println("Warning: Cannot create or write to file " + outFile);
             }
@@ -449,8 +451,8 @@ class FSM implements Serializable {
 
             if (readFSM == null) throw new InvalidInputException(fileName);
             this.setSymbols(readFSM.getSymbols());
-            this.setStates(readFSM.getStates());
             this.setInitialState(readFSM.getInitialState());
+            this.setStates(readFSM.getStates());
             this.setFinalState(readFSM.getFinalState());
             this.setTransitions(readFSM.getTransitions());
             this.setLogging(readFSM.getLogging());
@@ -476,21 +478,19 @@ class FSM implements Serializable {
         if (initialState.isEmpty()) throw new HasNotBeenDeclaredBefore("Initial State has not been declared before.");
 
         String currentState = initialState;
-        boolean rejected = false;
 
         for (int i = 0; i < input.length(); i++) {
             String symbol = String.valueOf(input.charAt(i));
             boolean foundTransition = false;
 
             for (String transition : transitions) {
-                String[] parts = transition.split(",");
-                if (parts.length != 3) continue;
+                String[] parts = transition.split(" ");
 
                 String from = parts[0];
                 String via = parts[1];
                 String to = parts[2];
 
-                if (from.equals(currentState) && via.equals(symbol)) {
+                if (via.equals(currentState) && from.equals(symbol)) {
                     currentState = to;
                     foundTransition = true;
                     break;
@@ -498,18 +498,15 @@ class FSM implements Serializable {
             }
 
             if (!foundTransition) {
-                System.out.println("Rejected: No transition found for symbol '" + symbol + "' from state '" + currentState + "'");
-                rejected = true;
-                break;
+                System.out.println("NO: No transition found for symbol '" + symbol + "' from state '" + currentState + "'");
+                return;
             }
         }
 
-        if (!rejected) {
-            if (finalState.contains(currentState)) {
-                System.out.println("Accepted.");
-            } else {
-                System.out.println("Rejected: Ended at non-final state '" + currentState + "'");
-            }
+        if (finalState.contains(currentState)) {
+            System.out.println("YES");
+        } else {
+            System.out.println("NO: Ended at non-final state '" + currentState + "'");
         }
     }
 
